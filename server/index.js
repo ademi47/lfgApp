@@ -41,11 +41,7 @@ const pool = mysql
 // Middleware
 app.use(
   cors({
-    origin: [
-      "https://lfg-app-two.vercel.app",
-      "http://localhost:3000", // Keep for development
-      "https://api.feargamingproductions.com",
-    ],
+    origin: ["https://lfg-app-two.vercel.app"], // Only allow your Vercel app
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
@@ -56,13 +52,21 @@ app.use(
       "X-Requested-With",
     ],
     exposedHeaders: ["Set-Cookie"],
-    optionsSuccessStatus: 204,
   })
 );
 
-// Add preflight handler
+// Add CORS preflight handler before any routes
 app.options("*", cors());
 
+// Add this before your routes to debug CORS
+app.use((req, res, next) => {
+  console.log("Request from origin:", req.headers.origin);
+  console.log("Request method:", req.method);
+  console.log("Request path:", req.path);
+  next();
+});
+
+// Use routes after CORS setup
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
