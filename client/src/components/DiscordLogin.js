@@ -17,8 +17,7 @@ const DiscordLogin = () => {
 
       if (code) {
         try {
-          const response = await axios.get("/auth/discord/login", {
-            baseURL: API_URL,
+          const response = await axios.get(`${API_URL}/auth/discord/login`, {
             params: { code },
           });
 
