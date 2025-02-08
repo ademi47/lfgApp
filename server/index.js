@@ -34,7 +34,11 @@ const pool = mysql.createPool({
 // Middleware
 app.use(
   cors({
-    origin: ["https://app.feargamingproductions.com", "http://localhost:3000"],
+    origin: [
+      "https://lfg-app-two.vercel.app",
+      "http://localhost:3000",
+      "https://api.feargamingproductions.com",
+    ],
     credentials: true,
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     allowedHeaders: ["Content-Type", "Authorization", "Origin", "Accept"],
