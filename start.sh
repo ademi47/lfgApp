@@ -3,7 +3,7 @@ cd ~/apps/lfgApp/server
 export PATH=$HOME/.node/node-v18.18.0-linux-x64/bin:$PATH
 
 # Add these environment variables directly
-export DB_HOST=127.0.0.1
+export DB_HOST=localhost
 export DB_USER=u561042160_lfgadmin
 export DB_PASSWORD=206#iCf!mk
 export DB_NAME=u561042160_lfgapp
