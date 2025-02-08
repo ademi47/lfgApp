@@ -16,19 +16,19 @@ const port = process.env.PORT || 5000;
 console.log("Current working directory:", process.cwd());
 console.log("Loading environment variables...");
 console.log({
-  DB_HOST: process.env.DB_HOST,
-  DB_USER: process.env.DB_USER,
-  DB_NAME: process.env.DB_NAME,
+  DB_HOST: "127.0.0.1", // Hardcoded value
+  DB_USER: "u561042160_lfgadmin",
+  DB_NAME: "u561042160_lfgapp",
   NODE_ENV: process.env.NODE_ENV,
 });
 
 // MySQL connection pool
 const pool = mysql
   .createPool({
-    host: process.env.DB_HOST || "localhost",
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
+    host: "127.0.0.1", // Hardcoded value
+    user: "u561042160_lfgadmin",
+    password: "206#iCf!mk",
+    database: "u561042160_lfgapp",
     port: 3306,
     waitForConnections: true,
     connectionLimit: 10,
