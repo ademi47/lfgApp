@@ -52,6 +52,7 @@ const DiscordLogin = () => {
       redirectUri
     )}&response_type=code&scope=${encodeURIComponent(scope)}`;
 
+    console.log("Discord Auth URL:", discordAuthUrl);
     window.location.href = discordAuthUrl;
   };
 
