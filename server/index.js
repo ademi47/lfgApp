@@ -516,6 +516,15 @@ app.get("/api/test", (req, res) => {
   res.json({ message: "API is running" });
 });
 
+// Add at the top level, before other routes
+app.get("/", (req, res) => {
+  res.json({ message: "API is running" });
+});
+
+app.get("/test", (req, res) => {
+  res.json({ message: "API test endpoint" });
+});
+
 // Log when server starts
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
