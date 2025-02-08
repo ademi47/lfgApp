@@ -1,20 +1,15 @@
 const mysql = require("mysql2/promise");
+require("dotenv").config();
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  host: "127.0.0.1", // Hardcode IPv4
+  user: "u561042160_lfgadmin",
+  password: "206#iCf!mk",
+  database: "u561042160_lfgapp",
   port: 3306,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  connectTimeout: 60000,
-  flags: "-FOUND_ROWS",
-  // Force IPv4
-  connectAttributes: {
-    _ipv6: false,
-  },
 });
 
 module.exports = pool;
