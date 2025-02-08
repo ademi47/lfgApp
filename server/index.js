@@ -45,13 +45,26 @@ app.use(
       "https://lfg-app-two.vercel.app",
       "http://localhost:3000",
       "https://api.feargamingproductions.com",
+      "http://localhost:3001", // Add this if needed
+      "*", // Temporarily allow all origins for testing
     ],
     credentials: true,
-    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-    allowedHeaders: ["Content-Type", "Authorization", "Origin", "Accept"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "Origin",
+      "Accept",
+      "X-Requested-With",
+    ],
+    exposedHeaders: ["Set-Cookie"],
     optionsSuccessStatus: 204,
   })
 );
+
+// Add preflight handler
+app.options("*", cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -477,6 +490,23 @@ app.delete("/api/posts/:post_id", async (req, res) => {
     console.error("Error deleting post:", error);
     res.status(500).json({ error: "Failed to delete post" });
   }
+});
+
+// Add this before app.listen()
+app.use((err, req, res, next) => {
+  console.error("Error:", err);
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: err.message,
+  });
+});
+
+// Add this for 404s
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Not Found",
+    path: req.path,
+  });
 });
 
 app.listen(port, () => {
