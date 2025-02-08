@@ -9,7 +9,7 @@ module.exports = {
     name: 'lfg-api',
     script: 'index.js',
     env: {
-      DB_HOST: 'localhost',
+      DB_HOST: '127.0.0.1',
       DB_USER: 'u561042160_lfgadmin',
       DB_PASSWORD: '206#iCf!mk',
       DB_NAME: 'u561042160_lfgapp',

@@ -9,6 +9,12 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  connectTimeout: 60000,
+  flags: "-FOUND_ROWS",
+  // Force IPv4
+  connectAttributes: {
+    _ipv6: false,
+  },
 });
 
 module.exports = pool;
