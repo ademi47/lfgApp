@@ -8,15 +8,7 @@ const DISCORD_CLIENT_ID = "1336295664551727146";
 const DISCORD_CLIENT_SECRET = "IH8_2rT7dZeWOq6TtiKcJ39RzuvAPjX1";
 
 // Create MySQL pool
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
+const pool = require("./db"); // We'll create this file next
 
 // Handle login callback
 router.get("/api/auth/discord/login", async (req, res) => {

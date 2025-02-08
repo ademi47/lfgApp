@@ -12,6 +12,14 @@ const discordAuthRoutes = require("./discordAuth"); // Import the discordAuth mo
 const app = express();
 const port = process.env.PORT || 5000;
 
+// Add this at the top to debug
+console.log("Current working directory:", process.cwd());
+console.log("Loading environment variables...");
+console.log("DB_USER:", process.env.DB_USER);
+console.log("DB_HOST:", process.env.DB_HOST);
+console.log("DB_NAME:", process.env.DB_NAME);
+// Don't log the password
+
 // MySQL connection pool
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
