@@ -7,10 +7,17 @@ export NODE_PATH=$HOME/.node/node-v18.18.0-linux-x64/lib/node_modules
 
 # Remove old node_modules and install fresh
 rm -rf node_modules
-npm install
+$HOME/.node/node-v18.18.0-linux-x64/bin/npm install
 
-# Stop all PM2 processes
-$HOME/.node/node-v18.18.0-linux-x64/lib/node_modules/pm2/bin/pm2 delete all
+# Stop any existing PM2 processes
+NODE_EXEC=$HOME/.node/node-v18.18.0-linux-x64/bin/node
+$NODE_EXEC $HOME/.node/node-v18.18.0-linux-x64/lib/node_modules/pm2/bin/pm2 delete all
 
-# Start the server with full path to node
-$HOME/.node/node-v18.18.0-linux-x64/bin/node index.js 
+# Start the server with PM2
+$NODE_EXEC $HOME/.node/node-v18.18.0-linux-x64/lib/node_modules/pm2/bin/pm2 start index.js --name "lfg-api" --interpreter $NODE_EXEC
+
+# Save PM2 process list
+$NODE_EXEC $HOME/.node/node-v18.18.0-linux-x64/lib/node_modules/pm2/bin/pm2 save
+
+# Display logs
+$NODE_EXEC $HOME/.node/node-v18.18.0-linux-x64/lib/node_modules/pm2/bin/pm2 logs lfg-api 
