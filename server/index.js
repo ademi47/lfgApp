@@ -41,7 +41,7 @@ const pool = mysql
 // Middleware
 app.use(
   cors({
-    origin: ["https://lfg-app-two.vercel.app"], // Only allow your Vercel app
+    origin: ["https://lfg-app-two.vercel.app", "http://localhost:3000"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: [
@@ -55,7 +55,7 @@ app.use(
   })
 );
 
-// Add CORS preflight handler before any routes
+// Add CORS preflight handler
 app.options("*", cors());
 
 // Add this before your routes to debug CORS
@@ -511,6 +511,13 @@ app.use((req, res) => {
   });
 });
 
+// Add a basic test route
+app.get("/api/test", (req, res) => {
+  res.json({ message: "API is running" });
+});
+
+// Log when server starts
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  console.log(`API URL: https://api.feargamingproductions.com/api`);
 });
