@@ -1,11 +1,22 @@
 const express = require("express");
 const fetch = require("node-fetch");
 const router = express.Router();
-const sqlite3 = require("sqlite3").verbose();
+const mysql = require("mysql2/promise");
 const querystring = require("querystring");
 
 const DISCORD_CLIENT_ID = "1336295664551727146";
 const DISCORD_CLIENT_SECRET = "IH8_2rT7dZeWOq6TtiKcJ39RzuvAPjX1";
+
+// Create MySQL pool
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+});
 
 // Handle login callback
 router.get("/api/auth/discord/login", async (req, res) => {
@@ -26,7 +37,7 @@ router.get("/api/auth/discord/login", async (req, res) => {
         grant_type: "authorization_code",
         redirect_uri: DISCORD_REDIRECT_URI,
         scope: "identify",
-      }).toString(),
+      }),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -55,36 +66,24 @@ router.get("/api/auth/discord/login", async (req, res) => {
     console.log("Discord user data:", userData);
 
     // Check if user exists in database
-    const db = new sqlite3.Database("./lfg.db");
-    const existingUser = await new Promise((resolve, reject) => {
-      db.get(
-        "SELECT * FROM users WHERE discord_id = ?",
-        [userData.id],
-        (err, row) => {
-          if (err) reject(err);
-          resolve(row);
-        }
-      );
-    });
+    const [existingUsers] = await pool.query(
+      "SELECT * FROM users WHERE discord_id = ?",
+      [userData.id]
+    );
+    const existingUser = existingUsers[0];
 
     console.log("Existing user:", existingUser);
 
     if (!existingUser) {
       // If user doesn't exist, create a new user
-      await new Promise((resolve, reject) => {
-        db.run(
-          `INSERT INTO users (
-            discord_id, 
-            display_name, 
-            email
-          ) VALUES (?, ?, ?)`,
-          [String(userData.id), userData.username, userData.email],
-          (err) => {
-            if (err) reject(err);
-            resolve();
-          }
-        );
-      });
+      await pool.query(
+        `INSERT INTO users (
+          discord_id, 
+          display_name, 
+          email
+        ) VALUES (?, ?, ?)`,
+        [String(userData.id), userData.username, userData.email]
+      );
     }
 
     // Send user data back to client

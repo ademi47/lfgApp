@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const sqlite3 = require("sqlite3").verbose();
+const mysql = require("mysql2/promise");
 const path = require("path");
 const multer = require("multer");
 const fs = require("fs");
@@ -11,6 +11,17 @@ const discordAuthRoutes = require("./discordAuth"); // Import the discordAuth mo
 
 const app = express();
 const port = process.env.PORT || 5000;
+
+// MySQL connection pool
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+});
 
 // Middleware
 app.use(
@@ -34,14 +45,48 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Database setup
-const db = new sqlite3.Database("./lfg.db", (err) => {
-  if (err) {
-    console.error("Error opening database:", err);
-  } else {
-    console.log("Connected to SQLite database");
+// Create tables
+async function initializeDatabase() {
+  try {
+    const connection = await pool.getConnection();
+
+    // Create users table first
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        discord_id VARCHAR(255) UNIQUE,
+        display_name VARCHAR(255) NOT NULL,
+        bio TEXT,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        birth_date DATE,
+        country VARCHAR(255),
+        profile_picture VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Then create lfg_posts table with foreign key
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS lfg_posts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        game_type VARCHAR(255) NOT NULL,
+        region VARCHAR(255) NOT NULL,
+        game_mode VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status VARCHAR(50) DEFAULT 'open',
+        user_id VARCHAR(255),
+        FOREIGN KEY (user_id) REFERENCES users(discord_id)
+      )
+    `);
+
+    connection.release();
+    console.log("Database tables created successfully");
+  } catch (error) {
+    console.error("Error initializing database:", error);
   }
-});
+}
+
+initializeDatabase();
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -72,88 +117,46 @@ function checkFileType(file, cb) {
   }
 }
 
-// Create tables
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS lfg_posts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      game_type TEXT NOT NULL,
-      region TEXT NOT NULL,
-      game_mode TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      status TEXT DEFAULT 'open',
-      user_id TEXT,
-      FOREIGN KEY (user_id) REFERENCES users(discord_id)
-    )
-  `);
-  db.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      discord_id TEXT UNIQUE,
-      display_name TEXT NOT NULL,
-      bio TEXT,
-      email TEXT UNIQUE NOT NULL,
-      birth_date DATE,
-      country TEXT,
-      profile_picture TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-});
-
 // Use the discordAuth routes
 app.use(discordAuthRoutes);
 
 // Routes
-app.get("/api/posts", (req, res) => {
-  db.all(
-    `SELECT 
-      p.id, 
-      p.game_type, 
-      p.region, 
-      p.game_mode, 
-      p.created_at,
-      p.status,
-      p.user_id,
-      u.display_name as player_name
-    FROM lfg_posts p
-    LEFT JOIN users u ON p.user_id = u.discord_id
-    WHERE p.status = "open" 
-    ORDER BY p.created_at DESC`,
-    [],
-    (err, rows) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json(rows);
-    }
-  );
+app.get("/api/posts", async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT 
+        p.id, 
+        p.game_type, 
+        p.region, 
+        p.game_mode, 
+        p.created_at,
+        p.status,
+        p.user_id,
+        u.display_name as player_name
+      FROM lfg_posts p
+      LEFT JOIN users u ON p.user_id = u.discord_id
+      WHERE p.status = "open" 
+      ORDER BY p.created_at DESC
+    `);
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching posts:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post("/api/posts", (req, res) => {
+app.post("/api/posts", async (req, res) => {
   const { game_type, region, game_mode, user_id } = req.body;
-
-  // Log the incoming data for debugging
-  console.log("Creating post with data:", {
-    game_type,
-    region,
-    game_mode,
-    user_id,
-  });
-
-  db.run(
-    "INSERT INTO lfg_posts (game_type, region, game_mode, user_id) VALUES (?, ?, ?, ?)",
-    [game_type, region, game_mode, user_id],
-    function (err) {
-      if (err) {
-        console.error("Error inserting post:", err);
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json({ id: this.lastID });
-    }
-  );
+  try {
+    const [result] = await pool.query(
+      "INSERT INTO lfg_posts (game_type, region, game_mode, user_id) VALUES (?, ?, ?, ?)",
+      [game_type, region, game_mode, user_id]
+    );
+    res.json({ id: result.insertId });
+  } catch (error) {
+    console.error("Error creating post:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Registration endpoint
@@ -177,7 +180,7 @@ app.post("/api/register", upload.single("profilePicture"), async (req, res) => {
     // Use Promise wrapper for better async handling
     const insertUser = () => {
       return new Promise((resolve, reject) => {
-        db.run(
+        pool.query(
           `INSERT INTO users (
             discord_id, display_name, bio, email, 
             birth_date, country, profile_picture
@@ -191,11 +194,11 @@ app.post("/api/register", upload.single("profilePicture"), async (req, res) => {
             country,
             profile_picture,
           ],
-          function (err) {
+          function (err, result) {
             if (err) {
               reject(err);
             } else {
-              resolve(this.lastID);
+              resolve(result.insertId);
             }
           }
         );
@@ -203,49 +206,37 @@ app.post("/api/register", upload.single("profilePicture"), async (req, res) => {
     };
 
     // Check if user exists
-    const existingUser = await new Promise((resolve, reject) => {
-      db.get(
-        "SELECT * FROM users WHERE discord_id = ?",
-        [discord_id],
-        (err, row) => {
-          if (err) reject(err);
-          resolve(row);
-        }
-      );
-    });
+    const [existingUser] = await pool.query(
+      "SELECT * FROM users WHERE discord_id = ?",
+      [discord_id]
+    );
 
-    if (existingUser) {
+    if (existingUser.length > 0) {
       // Update existing user
-      await new Promise((resolve, reject) => {
-        db.run(
-          `UPDATE users SET 
-            display_name = ?, 
-            bio = ?, 
-            email = ?, 
-            birth_date = ?, 
-            country = ?, 
-            profile_picture = ? 
-          WHERE discord_id = ?`,
-          [
-            display_name,
-            bio || "",
-            email,
-            birth_date,
-            country,
-            profile_picture,
-            discord_id,
-          ],
-          (err) => {
-            if (err) reject(err);
-            resolve();
-          }
-        );
-      });
+      await pool.query(
+        `UPDATE users SET 
+          display_name = ?, 
+          bio = ?, 
+          email = ?, 
+          birth_date = ?, 
+          country = ?, 
+          profile_picture = ? 
+        WHERE discord_id = ?`,
+        [
+          display_name,
+          bio || "",
+          email,
+          birth_date,
+          country,
+          profile_picture,
+          discord_id,
+        ]
+      );
 
       res.json({
         success: true,
         message: "User information updated successfully.",
-        userId: existingUser.id,
+        userId: existingUser[0].id,
       });
     } else {
       // Insert new user
@@ -268,24 +259,17 @@ app.post("/api/register", upload.single("profilePicture"), async (req, res) => {
 });
 
 // Delete all records from tables
-app.delete("/api/reset-db", (req, res) => {
+app.delete("/api/reset-db", async (req, res) => {
   try {
+    const connection = await pool.getConnection();
+
     // Delete all records from lfg_posts
-    db.run("DELETE FROM lfg_posts", [], (err) => {
-      if (err) {
-        console.error("Error deleting lfg_posts:", err);
-        return res.status(500).json({ error: "Failed to delete lfg_posts" });
-      }
-    });
+    await connection.query("DELETE FROM lfg_posts");
 
     // Delete all records from users
-    db.run("DELETE FROM users", [], (err) => {
-      if (err) {
-        console.error("Error deleting users:", err);
-        return res.status(500).json({ error: "Failed to delete users" });
-      }
-    });
+    await connection.query("DELETE FROM users");
 
+    connection.release();
     res.json({ message: "All records deleted successfully" });
   } catch (error) {
     console.error("Database reset error:", error);
@@ -296,9 +280,8 @@ app.delete("/api/reset-db", (req, res) => {
 app.post("/api/update", async (req, res) => {
   const { discord_id, display_name, bio, email, birth_date, country } =
     req.body;
-
   try {
-    await db.run(
+    await pool.query(
       `UPDATE users SET 
         display_name = ?, 
         bio = ?, 
@@ -308,13 +291,12 @@ app.post("/api/update", async (req, res) => {
       WHERE discord_id = ?`,
       [display_name, bio || "", email, birth_date, country, discord_id]
     );
-
     res.json({
       success: true,
       message: "User information updated successfully.",
     });
   } catch (error) {
-    console.error("Update error:", error);
+    console.error("Error updating user:", error);
     res
       .status(500)
       .json({ success: false, error: "Failed to update user information." });
@@ -322,95 +304,92 @@ app.post("/api/update", async (req, res) => {
 });
 
 // Get user by discord_id endpoint
-app.get("/api/users/:discord_id", (req, res) => {
+app.get("/api/users/:discord_id", async (req, res) => {
   const { discord_id } = req.params;
-  console.log("Fetching user with discord_id:", discord_id);
-
-  db.get(
-    "SELECT id, discord_id, display_name, email, bio, country, birth_date FROM users WHERE discord_id = ?",
-    [discord_id],
-    (err, row) => {
-      if (err) {
-        console.error("Database error:", err);
-        return res.status(500).json({ error: err.message });
-      }
-      if (!row) {
-        console.log("User not found for discord_id:", discord_id);
-        return res.status(404).json({ error: "User not found" });
-      }
-      console.log("Found user data:", row);
-      res.json(row);
+  try {
+    const [rows] = await pool.query(
+      "SELECT id, discord_id, display_name, email, bio, country, birth_date FROM users WHERE discord_id = ?",
+      [discord_id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
     }
-  );
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Add this new endpoint to get posts by user_id
-app.get("/api/posts/user/:user_id", (req, res) => {
+app.get("/api/posts/user/:user_id", async (req, res) => {
   const { user_id } = req.params;
-
-  db.all(
-    `SELECT 
-      p.id, 
-      p.game_type, 
-      p.region, 
-      p.game_mode, 
-      p.created_at,
-      p.status,
-      p.user_id,
-      u.display_name as player_name
-    FROM lfg_posts p
-    LEFT JOIN users u ON p.user_id = u.discord_id
-    WHERE p.user_id = ? AND p.status = "open" 
-    ORDER BY p.created_at DESC`,
-    [user_id],
-    (err, rows) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json(rows);
-    }
-  );
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        p.id, 
+        p.game_type, 
+        p.region, 
+        p.game_mode, 
+        p.created_at,
+        p.status,
+        p.user_id,
+        u.display_name as player_name
+      FROM lfg_posts p
+      LEFT JOIN users u ON p.user_id = u.discord_id
+      WHERE p.user_id = ? AND p.status = "open" 
+      ORDER BY p.created_at DESC`,
+      [user_id]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error("Error fetching posts:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-// Add this new endpoint to check user profile completion
-app.get("/api/users/:discord_id/profile-check", (req, res) => {
+// Update the profile check endpoint
+app.get("/api/users/:discord_id/profile-check", async (req, res) => {
   const { discord_id } = req.params;
+  try {
+    const [rows] = await pool.query(
+      `
+      SELECT 
+        CASE 
+          WHEN birth_date IS NULL OR birth_date < '1900-01-01' OR
+               country IS NULL OR country = ''
+          THEN false
+          ELSE true
+        END as is_profile_complete,
+        CASE 
+          WHEN birth_date IS NULL OR birth_date < '1900-01-01' THEN NULL 
+          ELSE DATE_FORMAT(birth_date, '%Y-%m-%d')
+        END as birth_date,
+        country
+      FROM users 
+      WHERE discord_id = ?`,
+      [discord_id]
+    );
 
-  db.get(
-    `SELECT 
-      CASE 
-        WHEN birth_date IS NULL OR birth_date = '' OR
-             country IS NULL OR country = ''
-        THEN false
-        ELSE true
-      END as is_profile_complete,
-      birth_date,
-      country
-    FROM users 
-    WHERE discord_id = ?`,
-    [discord_id],
-    (err, row) => {
-      if (err) {
-        console.error("Database error:", err);
-        return res.status(500).json({ error: err.message });
-      }
-      if (!row) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      const response = {
-        is_profile_complete: row.is_profile_complete === 1,
-        missing_fields: {
-          birth_date: !row.birth_date,
-          country: !row.country,
-        },
-      };
-
-      console.log("Profile check for user:", discord_id, response);
-      res.json(response);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
     }
-  );
+
+    const response = {
+      is_profile_complete: rows[0].is_profile_complete === 1,
+      missing_fields: {
+        birth_date: !rows[0].birth_date,
+        country: !rows[0].country,
+      },
+    };
+
+    console.log("Profile check for user:", discord_id, response);
+    res.json(response);
+  } catch (error) {
+    console.error("Error fetching profile check:", error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Add this new endpoint to send LFG messages
@@ -463,26 +442,22 @@ app.post("/api/send-lfg", async (req, res) => {
 });
 
 // Add delete post endpoint
-app.delete("/api/posts/:post_id", (req, res) => {
+app.delete("/api/posts/:post_id", async (req, res) => {
   const { post_id } = req.params;
-  const { user_id } = req.query; // For security check
-
-  db.run(
-    "DELETE FROM lfg_posts WHERE id = ? AND user_id = ?",
-    [post_id, user_id],
-    function (err) {
-      if (err) {
-        console.error("Error deleting post:", err);
-        return res.status(500).json({ error: "Failed to delete post" });
-      }
-      if (this.changes === 0) {
-        return res
-          .status(404)
-          .json({ error: "Post not found or unauthorized" });
-      }
-      res.json({ success: true, message: "Post deleted successfully" });
+  const { user_id } = req.query;
+  try {
+    const [result] = await pool.query(
+      "DELETE FROM lfg_posts WHERE id = ? AND user_id = ?",
+      [post_id, user_id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Post not found or unauthorized" });
     }
-  );
+    res.json({ success: true, message: "Post deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting post:", error);
+    res.status(500).json({ error: "Failed to delete post" });
+  }
 });
 
 app.listen(port, () => {
