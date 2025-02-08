@@ -38,6 +38,17 @@ const pool = mysql
     console.error("Pool error:", err);
   });
 
+// Add this after pool creation
+pool
+  .getConnection()
+  .then((connection) => {
+    console.log("Database connected successfully");
+    connection.release();
+  })
+  .catch((err) => {
+    console.error("Error connecting to the database:", err);
+  });
+
 // Middleware
 app.use(
   cors({
