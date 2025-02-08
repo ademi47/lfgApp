@@ -43,10 +43,8 @@ app.use(
   cors({
     origin: [
       "https://lfg-app-two.vercel.app",
-      "http://localhost:3000",
+      "http://localhost:3000", // Keep for development
       "https://api.feargamingproductions.com",
-      "http://localhost:3001", // Add this if needed
-      "*", // Temporarily allow all origins for testing
     ],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

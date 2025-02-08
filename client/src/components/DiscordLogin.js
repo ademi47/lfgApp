@@ -45,7 +45,7 @@ const DiscordLogin = () => {
 
   const handleLogin = () => {
     const DISCORD_CLIENT_ID = "1336295664551727146";
-    const redirectUri = "http://localhost:3000/login/callback";
+    const redirectUri = "https://lfg-app-two.vercel.app/login/callback";
     const scope = "identify email";
 
     const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(

@@ -84,7 +84,7 @@ const Registration = () => {
 
   const handleRegister = () => {
     const DISCORD_CLIENT_ID = "1336295664551727146";
-    const redirectUri = "http://localhost:3000/register/callback"; // Registration-specific callback
+    const redirectUri = "https://lfg-app-two.vercel.app/register/callback";
     const scope = "identify email";
 
     const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(
