@@ -172,6 +172,12 @@ const Layout = () => {
               <p className="text-gray-400 mt-2">
                 Find your perfect gaming squad
               </p>
+              <button
+                onClick={handleLogin}
+                className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Login with Discord
+              </button>
             </div>
           )}
         </div>

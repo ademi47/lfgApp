@@ -375,7 +375,11 @@ const Home = () => {
           </div>
         </div>
       ) : (
-        <div>{/* Placeholder for DiscordLogin component */}</div>
+        <div className="text-center">
+          <p className="text-gray-400 mb-4">
+            Please log in with Discord to continue.
+          </p>
+        </div>
       )}
     </div>
   );
