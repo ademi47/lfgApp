@@ -3,7 +3,6 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API_URL } from "../config";
-import DiscordLogin from "./DiscordLogin";
 
 const Home = () => {
   const { user } = useAuth();
@@ -376,7 +375,7 @@ const Home = () => {
           </div>
         </div>
       ) : (
-        <DiscordLogin />
+        <div>{/* Placeholder for DiscordLogin component */}</div>
       )}
     </div>
   );
