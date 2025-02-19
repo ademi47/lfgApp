@@ -5,7 +5,7 @@ import axios from "axios";
 import { API_URL } from "../config";
 
 const Layout = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [displayName, setDisplayName] = useState("");
@@ -68,6 +68,37 @@ const Layout = () => {
 
     checkUserProfile();
   }, [user]);
+
+  useEffect(() => {
+    const handleCallback = async () => {
+      const urlParams = new URLSearchParams(location.search);
+      const code = urlParams.get("code");
+
+      if (code) {
+        try {
+          const response = await axios.get(`${API_URL}/auth/discord/login`, {
+            params: { code },
+          });
+
+          if (response.data.success) {
+            console.log("Login response:", response.data);
+            await login({
+              id: response.data.user.id,
+              discord_id: response.data.user.discord_id,
+              displayName: response.data.user.username,
+            });
+            navigate("/");
+          }
+        } catch (error) {
+          console.error("Login error:", error);
+        }
+      }
+    };
+
+    if (location.pathname === "/login/callback") {
+      handleCallback();
+    }
+  }, [location, navigate, login]);
 
   const handleUpdateClick = () => {
     navigate("/update");
