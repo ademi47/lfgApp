@@ -73,6 +73,18 @@ const Layout = () => {
     navigate("/update");
   };
 
+  const handleLogin = () => {
+    const DISCORD_CLIENT_ID = "1336295664551727146";
+    const redirectUri = "https://lfg-app-two.vercel.app/login/callback";
+    const scope = "identify email";
+
+    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(
+      redirectUri
+    )}&response_type=code&scope=${encodeURIComponent(scope)}`;
+
+    window.location.href = discordAuthUrl;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
       <div className="container mx-auto px-4 py-8">
